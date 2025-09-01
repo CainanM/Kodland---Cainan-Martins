@@ -56,7 +56,6 @@ class Player:
         self.animated_actor = AnimatedActor()
         self.rect = Rect(x, y, 15, 25)
 
-        # Carrega as animações diretamente
         self.animated_actor.add_animation("idle", [
             Actor("hero_idle_0"), Actor("hero_idle_1"),
             Actor("hero_idle_2"), Actor("hero_idle_3")
@@ -71,7 +70,6 @@ class Player:
         ])
         self.animated_actor.add_animation("jump", [Actor("hero_jump_0")])
 
-        # Sincroniza a posição inicial dos sprites com o retângulo de colisão
         for anim_name in self.animated_actor.animations:
             for frame in self.animated_actor.animations[anim_name]:
                 frame.center = self.rect.center
@@ -99,8 +97,6 @@ class Player:
                 elif self.velocity_y < 0:
                     self.rect.top = platform_rect.bottom
                     self.velocity_y = 0
-
-        # Define a animação correta
         if not self.on_ground:
             self.animated_actor.set_animation("jump")
         elif self.velocity_x > 0:
@@ -116,9 +112,8 @@ class Player:
             self.animated_actor.facing_right = False
             
         self.animated_actor.update_animation()
-        
-        # Atualiza a posição do sprite para seguir o retângulo de colisão
         current_frame = self.animated_actor.get_current_frame()
+        
         if current_frame:
             current_frame.center = self.rect.center
 
@@ -139,10 +134,8 @@ class Player:
     def draw(self):
         current_frame = self.animated_actor.get_current_frame()
         if current_frame:
-            # A animação "run_left" já possui sprites virados para a esquerda.
-            # As outras animações usam o flip para virar o personagem.
             if self.animated_actor.current_animation == "run_left":
-                current_frame.flip_x = False # Garante que a animação para a esquerda não seja invertida
+                current_frame.flip_x = False 
             else:
                 current_frame.flip_x = not self.animated_actor.facing_right
             
@@ -156,7 +149,6 @@ class Enemy:
         self.hitbox_offset_x = 0
         self.hitbox_offset_y = 0
 
-        # Carrega sprites com base no tipo de inimigo
         if enemy_type == "patrol":
             self.animated_actor.add_animation("idle", [Actor("enemy_patrol_0"), Actor("enemy_patrol_1"), Actor("enemy_patrol_2")])
             self.animated_actor.add_animation("move", [Actor("enemy_patrol_0"), Actor("enemy_patrol_1"), Actor("enemy_patrol_2")])
@@ -266,7 +258,6 @@ class Door:
     def __init__(self, x, y):
         self.rect = Rect(x, y, 40, 60)
         self.sprite = Actor("door")
-        # Ajusta o tamanho visual sem mudar o hitbox
         visual_height = self.rect.height * 1.5
         self.sprite.height = visual_height
         self.sprite.midbottom = self.rect.midbottom
