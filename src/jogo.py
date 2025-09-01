@@ -1,6 +1,5 @@
 import pgzrun
 import math
-import random
 from pygame.rect import Rect
 import os
 
@@ -12,12 +11,7 @@ PLAYING = 1
 GAME_OVER = 2
 VICTORY = 3
 BACKGROUND_COLOR = (0, 127, 255)
-PLAYER_COLOR = (30, 180, 50)
-ENEMY1_COLOR = (220, 50, 50)
-ENEMY2_COLOR = (220, 150, 50)
-ENEMY3_COLOR = (180, 50, 220)
 PLATFORM_COLOR = (255, 255, 255)
-DOOR_COLOR = (128, 0, 0)
 TEXT_COLOR = (240, 240, 240)
 GRASS_COLOR = (128, 128, 128)
 DIRT_COLOR = (0, 0, 0)
@@ -61,53 +55,27 @@ class Player:
         self.on_ground = False
         self.animated_actor = AnimatedActor()
         self.rect = Rect(x, y, 15, 25)
-        self.has_sprites = False
-        try:
-            try:
-                Actor("hero_idle_0")
-                sprite_exists = True
-            except:
-                sprite_exists = False
-            if sprite_exists:
-                self.animated_actor.add_animation("idle", [
-                    Actor("hero_idle_0"),
-                    Actor("hero_idle_1"),
-                    Actor("hero_idle_2"),
-                    Actor("hero_idle_3")
-                ])
-                self.animated_actor.add_animation("run", [
-                    Actor("hero_run_0"),
-                    Actor("hero_run_1"),
-                    Actor("hero_run_2"),
-                    Actor("hero_run_3"),
-                    Actor("hero_run_4"),
-                    Actor("hero_run_5")
-                ])
-                self.animated_actor.add_animation("run_left", [
-                    Actor("hero_run_left_0"),
-                    Actor("hero_run_left_1"),
-                    Actor("hero_run_left_2"),
-                    Actor("hero_run_left_3"),
-                    Actor("hero_run_left_4"),
-                    Actor("hero_run_left_5")
-                ])
-                self.animated_actor.add_animation("jump", [
-                    Actor("hero_jump_0")
-                ])
-                for anim_name in self.animated_actor.animations:
-                    for frame in self.animated_actor.animations[anim_name]:
-                        frame.x = self.rect.x + self.rect.width / 2
-                        frame.y = self.rect.y + self.rect.height / 2
-                self.has_sprites = True
-                print("Sprites do herói carregados com sucesso!")
-            else:
-                raise Exception("Sprites não encontrados")
-        except Exception as e:
-            print(f"Sprites do herói não encontrados, usando fallback: {e}")
-            self.animated_actor.add_animation("idle", ["idle_frame"])
-            self.animated_actor.add_animation("run", ["run_frame1", "run_frame2", "run_frame3"])
-            self.animated_actor.add_animation("run_left", ["run_frame1", "run_frame2", "run_frame3"])
-            self.animated_actor.add_animation("jump", ["jump_frame"])
+
+        # Carrega as animações diretamente
+        self.animated_actor.add_animation("idle", [
+            Actor("hero_idle_0"), Actor("hero_idle_1"),
+            Actor("hero_idle_2"), Actor("hero_idle_3")
+        ])
+        self.animated_actor.add_animation("run", [
+            Actor("hero_run_0"), Actor("hero_run_1"), Actor("hero_run_2"),
+            Actor("hero_run_3"), Actor("hero_run_4"), Actor("hero_run_5")
+        ])
+        self.animated_actor.add_animation("run_left", [
+            Actor("hero_run_left_0"), Actor("hero_run_left_1"), Actor("hero_run_left_2"),
+            Actor("hero_run_left_3"), Actor("hero_run_left_4"), Actor("hero_run_left_5")
+        ])
+        self.animated_actor.add_animation("jump", [Actor("hero_jump_0")])
+
+        # Sincroniza a posição inicial dos sprites com o retângulo de colisão
+        for anim_name in self.animated_actor.animations:
+            for frame in self.animated_actor.animations[anim_name]:
+                frame.center = self.rect.center
+
     def update(self, platforms):
         self.velocity_y += GRAVITY
         self.rect.x += self.velocity_x
@@ -131,6 +99,8 @@ class Player:
                 elif self.velocity_y < 0:
                     self.rect.top = platform_rect.bottom
                     self.velocity_y = 0
+
+        # Define a animação correta
         if not self.on_ground:
             self.animated_actor.set_animation("jump")
         elif self.velocity_x > 0:
@@ -139,16 +109,19 @@ class Player:
             self.animated_actor.set_animation("run_left")
         else:
             self.animated_actor.set_animation("idle")
+
         if self.velocity_x > 0:
             self.animated_actor.facing_right = True
         elif self.velocity_x < 0:
             self.animated_actor.facing_right = False
+            
         self.animated_actor.update_animation()
-        if self.has_sprites:
-            current_frame = self.animated_actor.get_current_frame()
-            if current_frame:
-                current_frame.x = self.rect.x + self.rect.width / 2
-                current_frame.y = self.rect.y + self.rect.height / 2
+        
+        # Atualiza a posição do sprite para seguir o retângulo de colisão
+        current_frame = self.animated_actor.get_current_frame()
+        if current_frame:
+            current_frame.center = self.rect.center
+
     def move_left(self):
         self.velocity_x = -PLAYER_SPEED
     def move_right(self):
@@ -162,116 +135,58 @@ class Player:
             self.on_ground = False
             if game.sounds_on:
                 sounds.jump.play()
+                
     def draw(self):
-        if self.has_sprites:
-            current_frame = self.animated_actor.get_current_frame()
-            if current_frame:
+        current_frame = self.animated_actor.get_current_frame()
+        if current_frame:
+            # A animação "run_left" já possui sprites virados para a esquerda.
+            # As outras animações usam o flip para virar o personagem.
+            if self.animated_actor.current_animation == "run_left":
+                current_frame.flip_x = False # Garante que a animação para a esquerda não seja invertida
+            else:
                 current_frame.flip_x = not self.animated_actor.facing_right
-                current_frame.draw()
-        else:
-            screen.draw.filled_rect(self.rect, PLAYER_COLOR)
-            eye_x = self.rect.right - 10 if self.animated_actor.facing_right else self.rect.left + 10
-            screen.draw.filled_circle((eye_x, self.rect.top + 15), 5, (255, 255, 255))
+            
+            current_frame.draw()
 
 class Enemy:
-    def __init__(self, x, y, width, height, color, enemy_type):
+    def __init__(self, x, y, width, height, enemy_type):
         self.rect = Rect(x, y, width, height)
-        self.color = color
         self.enemy_type = enemy_type
         self.animated_actor = AnimatedActor()
-        self.has_sprites = False
         self.hitbox_offset_x = 0
         self.hitbox_offset_y = 0
-        try:
-            if enemy_type == "patrol":
-                try:
-                    Actor("enemy_patrol_0")
-                    patrol_exists = True
-                except:
-                    patrol_exists = False
-                if patrol_exists:
-                    self.animated_actor.add_animation("idle", [
-                        Actor("enemy_patrol_0"),
-                        Actor("enemy_patrol_1"),
-                        Actor("enemy_patrol_2")
-                    ])
-                    self.animated_actor.add_animation("move", [
-                        Actor("enemy_patrol_0"),
-                        Actor("enemy_patrol_1"),
-                        Actor("enemy_patrol_2")
-                    ])
-                    self.has_sprites = True
-                    print(f"Sprites do inimigo {enemy_type} carregados com sucesso!")
-                else:
-                    raise Exception("Sprites não encontrados")
-            elif enemy_type == "jumper":
-                try:
-                    Actor("enemy_jumper_0")
-                    jumper_exists = True
-                except:
-                    jumper_exists = False
-                if jumper_exists:
-                    self.animated_actor.add_animation("idle", [
-                        Actor("enemy_jumper_0"),
-                        Actor("enemy_jumper_1")
-                    ])
-                    self.animated_actor.add_animation("move", [
-                        Actor("enemy_jumper_0"),
-                        Actor("enemy_jumper_1")
-                    ])
-                    self.has_sprites = True
-                    print(f"Sprites do inimigo {enemy_type} carregados com sucesso!")
-                else:
-                    raise Exception("Sprites não encontrados")
-            elif enemy_type == "chaser":
-                try:
-                    Actor("enemy_chaser_0")
-                    chaser_exists = True
-                except:
-                    chaser_exists = False
-                if chaser_exists:
-                    self.animated_actor.add_animation("idle", [
-                        Actor("enemy_chaser_0"),
-                        Actor("enemy_chaser_1"),
-                        Actor("enemy_chaser_2")
-                    ])
-                    self.animated_actor.add_animation("move", [
-                        Actor("enemy_chaser_0"),
-                        Actor("enemy_chaser_1"),
-                        Actor("enemy_chaser_2")
-                    ])
-                    self.has_sprites = True
-                    print(f"Sprites do inimigo {enemy_type} carregados com sucesso!")
-                else:
-                    raise Exception("Sprites não encontrados")
-        except Exception as e:
-            print(f"Sprites do inimigo {enemy_type} não encontrados, usando fallback: {e}")
-            self.animated_actor.add_animation("idle", ["idle_frame"])
-            self.animated_actor.add_animation("move", ["move_frame1", "move_frame2"])
-        if self.has_sprites:
-            for anim_name in self.animated_actor.animations:
-                for frame in self.animated_actor.animations[anim_name]:
-                    frame.x = self.rect.x + self.rect.width / 2
-                    frame.y = self.rect.y + self.rect.height / 2
+
+        # Carrega sprites com base no tipo de inimigo
+        if enemy_type == "patrol":
+            self.animated_actor.add_animation("idle", [Actor("enemy_patrol_0"), Actor("enemy_patrol_1"), Actor("enemy_patrol_2")])
+            self.animated_actor.add_animation("move", [Actor("enemy_patrol_0"), Actor("enemy_patrol_1"), Actor("enemy_patrol_2")])
+        elif enemy_type == "jumper":
+            self.animated_actor.add_animation("idle", [Actor("enemy_jumper_0"), Actor("enemy_jumper_1")])
+            self.animated_actor.add_animation("move", [Actor("enemy_jumper_0"), Actor("enemy_jumper_1")])
+        elif enemy_type == "chaser":
+            self.animated_actor.add_animation("idle", [Actor("enemy_chaser_0"), Actor("enemy_chaser_1"), Actor("enemy_chaser_2")])
+            self.animated_actor.add_animation("move", [Actor("enemy_chaser_0"), Actor("enemy_chaser_1"), Actor("enemy_chaser_2")])
+
+        for anim_name in self.animated_actor.animations:
+            for frame in self.animated_actor.animations[anim_name]:
+                frame.center = self.rect.center
+
     def update(self, player, platforms):
-        if self.has_sprites:
-            current_frame = self.animated_actor.get_current_frame()
-            if current_frame:
-                current_frame.x = self.rect.x + self.rect.width / 2
-                current_frame.y = self.rect.y + self.rect.height / 2
+        current_frame = self.animated_actor.get_current_frame()
+        if current_frame:
+            current_frame.centerx = self.rect.centerx + self.hitbox_offset_x
+            current_frame.centery = self.rect.centery + self.hitbox_offset_y
+    
     def draw(self):
-        if self.has_sprites:
-            current_frame = self.animated_actor.get_current_frame()
-            if current_frame:
-                current_frame.flip_x = not self.animated_actor.facing_right
-                current_frame.draw()
-        else:
-            screen.draw.filled_rect(self.rect, self.color)
+        current_frame = self.animated_actor.get_current_frame()
+        if current_frame:
+            current_frame.flip_x = not self.animated_actor.facing_right
+            current_frame.draw()
         self.animated_actor.update_animation()
 
 class EnemyPatrol(Enemy):
     def __init__(self, x, y, patrol_distance):
-        super().__init__(x, y, 24, 32, ENEMY1_COLOR, "patrol")
+        super().__init__(x, y, 24, 32, "patrol")
         self.start_x = x
         self.patrol_distance = patrol_distance
         self.direction = 1
@@ -284,15 +199,13 @@ class EnemyPatrol(Enemy):
         elif self.rect.x < self.start_x:
             self.direction = 1
             self.animated_actor.facing_right = True
-        if self.speed != 0:
-            self.animated_actor.set_animation("move")
-        else:
-            self.animated_actor.set_animation("idle")
+        
+        self.animated_actor.set_animation("move" if self.speed != 0 else "idle")
         super().update(player, platforms)
 
 class EnemyJumper(Enemy):
     def __init__(self, x, y):
-        super().__init__(x, y, 24, 32, ENEMY2_COLOR, "jumper")
+        super().__init__(x, y, 24, 32, "jumper")
         self.jump_timer = 0
         self.jump_interval = 120
         self.on_ground = False
@@ -318,20 +231,13 @@ class EnemyJumper(Enemy):
             self.velocity_y = -JUMP_STRENGTH + 2
             self.on_ground = False
             self.jump_timer = 0
-        if not self.on_ground:
-            self.animated_actor.set_animation("move")
-        else:
-            self.animated_actor.set_animation("idle")
-        if self.has_sprites:
-            current_frame = self.animated_actor.get_current_frame()
-            if current_frame:
-                current_frame.x = self.rect.x + self.rect.width / 2 + self.hitbox_offset_x
-                current_frame.y = self.rect.y + self.rect.height / 2 + self.hitbox_offset_y
-        self.animated_actor.update_animation()
+        
+        self.animated_actor.set_animation("move" if not self.on_ground else "idle")
+        super().update(player, platforms) 
 
 class EnemyChaser(Enemy):
     def __init__(self, x, y):
-        super().__init__(x, y, 24, 32, ENEMY3_COLOR, "chaser")
+        super().__init__(x, y, 24, 32, "chaser")
         self.speed = 1.5
         self.chase_range = 90
     def update(self, player, platforms):
@@ -359,24 +265,13 @@ class Platform:
 class Door:
     def __init__(self, x, y):
         self.rect = Rect(x, y, 40, 60)
-        self.has_sprite = False
-        self.sprite = None
-        try:
-            temp_sprite = Actor("door")
-            visual_height = self.rect.height * 1.5
-            temp_sprite.height = visual_height
-            self.sprite = temp_sprite
-            self.sprite.midbottom = self.rect.midbottom
-            self.has_sprite = True
-            print("Sprite da porta carregado com sucesso!")
-        except Exception as e:
-            print(f"Sprite 'door.png' não encontrado, usando fallback de retângulo: {e}")
+        self.sprite = Actor("door")
+        # Ajusta o tamanho visual sem mudar o hitbox
+        visual_height = self.rect.height * 1.5
+        self.sprite.height = visual_height
+        self.sprite.midbottom = self.rect.midbottom
     def draw(self):
-        if self.has_sprite and self.sprite:
-            self.sprite.draw()
-        else:
-            screen.draw.filled_rect(self.rect, DOOR_COLOR)
-            screen.draw.rect(self.rect, (220, 220, 100))
+        self.sprite.draw()
 
 class Button:
     def __init__(self, x, y, width, height, text, action):
@@ -412,6 +307,7 @@ class Game:
             music.play('background')
         except Exception as e:
             print(f"Não foi possível tocar a música de fundo: {e}")
+            
     def setup_menu(self):
         center_x = WIDTH // 2
         self.menu_buttons = [
@@ -427,6 +323,7 @@ class Game:
         self.menu_hero = Player(150, HEIGHT - 80)
         self.menu_hero.velocity_x = 2
         self.menu_hero.on_ground = True
+        
     def start_game(self):
         self.state = PLAYING
         self.setup_level_1()
@@ -438,10 +335,12 @@ class Game:
             print("Arquivos de som não encontrados para ajustar o volume.")
         if self.music_on and not music.is_playing('background'):
             music.play('background')
+            
     def go_to_menu(self):
         self.state = MENU
         if self.music_on and not music.is_playing('background'):
             music.play('background')
+            
     def toggle_music(self):
         self.music_on = not self.music_on
         self.menu_buttons[1].text = "Music: On" if self.music_on else "Music: Off"
@@ -449,11 +348,14 @@ class Game:
             music.unpause()
         else:
             music.pause()
+            
     def toggle_sounds(self):
         self.sounds_on = not self.sounds_on
         self.menu_buttons[2].text = "Sounds: On" if self.sounds_on else "Sounds: Off"
+        
     def exit_game(self):
         exit()
+        
     def setup_level_1(self):
         self.player = Player(100, 300)
         self.platforms = [
@@ -470,22 +372,25 @@ class Game:
             EnemyChaser(600, 520)
         ]
         self.door = Door(700, 516)
+        
     def update(self):
         if self.state == MENU:
             self.menu_hero.rect.x += self.menu_hero.velocity_x
             if self.menu_hero.rect.left < 150 or self.menu_hero.rect.right > WIDTH - 150:
                 self.menu_hero.velocity_x *= -1
+            
             if self.menu_hero.velocity_x > 0:
                 self.menu_hero.animated_actor.set_animation("run")
                 self.menu_hero.animated_actor.facing_right = True
             else:
                 self.menu_hero.animated_actor.set_animation("run_left")
                 self.menu_hero.animated_actor.facing_right = False
+            
             self.menu_hero.animated_actor.update_animation()
-            if self.menu_hero.has_sprites:
-                current_frame = self.menu_hero.animated_actor.get_current_frame()
-                if current_frame:
-                    current_frame.center = self.menu_hero.rect.center
+            current_frame = self.menu_hero.animated_actor.get_current_frame()
+            if current_frame:
+                current_frame.center = self.menu_hero.rect.center
+                
         if self.state == PLAYING:
             self.player.update(self.platforms)
             for enemy in self.enemies:
@@ -497,6 +402,7 @@ class Game:
                     return 
             if self.player.rect.colliderect(self.door.rect):
                 self.state = VICTORY
+                
     def draw(self):
         if self.state == MENU:
             screen.fill(MENU_BLUE)
@@ -536,6 +442,7 @@ class Game:
             button.draw()
         screen.draw.filled_rect(Rect(0, HEIGHT - 50, WIDTH, 50), MENU_BLUE)
         self.menu_hero.draw()
+        
     def draw_level(self):
         self.draw_ground()
         for platform in self.platforms[1:]:
@@ -544,26 +451,32 @@ class Game:
         for enemy in self.enemies:
             enemy.draw()
         self.player.draw()
+        
     def draw_ground(self):
         screen.draw.filled_rect(Rect(0, 550, 800, 50), DIRT_COLOR)
         screen.draw.filled_rect(Rect(0, 550, 800, 10), GRASS_COLOR)
+        
     def on_mouse_move(self, pos):
+        buttons_to_check = []
         if self.state == MENU:
-            for button in self.menu_buttons:
-                button.check_hover(pos)
+            buttons_to_check = self.menu_buttons
         elif self.state == GAME_OVER:
-            for button in self.game_over_buttons:
-                button.check_hover(pos)
+            buttons_to_check = self.game_over_buttons
+        for button in buttons_to_check:
+            button.check_hover(pos)
+            
     def on_mouse_down(self, pos):
+        buttons_to_check = []
         if self.state == MENU:
-            for button in self.menu_buttons:
-                if button.check_click(pos):
-                    button.action()
+            buttons_to_check = self.menu_buttons
         elif self.state == GAME_OVER:
-            for button in self.game_over_buttons:
-                if button.check_click(pos):
-                    button.action()
-        elif self.state == VICTORY:
+            buttons_to_check = self.game_over_buttons
+        
+        for button in buttons_to_check:
+            if button.check_click(pos):
+                button.action()
+        
+        if self.state == VICTORY:
             self.go_to_menu()
 
 game = Game()
