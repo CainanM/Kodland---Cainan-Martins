@@ -39,16 +39,16 @@ Para que o jogo funcione corretamente, os arquivos de recursos (imagens, sons, e
 
 ```
 seu_projeto/
-├── seu_jogo.py      (o seu arquivo de código principal)
+├── jogo.py      
 ├── images/
 │   ├── hero_idle_0.png
 │   ├── hero_run_0.png
 │   ├── hero_run_left_0.png
-│   ├── ... (outros sprites do herói)
+│   ├── ... 
 │   ├── enemy_patrol_0.png
 │   ├── enemy_jumper_0.png
 │   ├── enemy_chaser_0.png
-│   ├── ... (outros sprites de inimigos)
+│   ├── ... 
 │   ├── door.png
 │   └── background.png
 ├── sounds/
